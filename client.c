@@ -57,9 +57,9 @@ int main()
     while(1)
     {
 
-    	fflush(stdout);
     	printf(">");
-
+    	fflush(stdout);
+    	
      	memset (send, 0, max);
      	read (0, send, max);
 
