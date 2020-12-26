@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <unistd.h>
@@ -9,20 +10,11 @@
 #include <arpa/inet.h>
 #include <sqlite3.h>
 
-#define port 8888
+#define PORT 2728
 #define max 1024
 extern int errno;
 
 sqlite3 *db;
-	
-//Database open
-int rc = sqlite3_open("topmusic.db", &db);
-if (rc != SQLITE_OK) 
-{
-	fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
-	sqlite3_close(db);
-	return 1;
-}
 
 //Database functions
 int callback(void *str, int argc, char **argv, char **azColName)
@@ -31,24 +23,31 @@ int callback(void *str, int argc, char **argv, char **azColName)
 	for (int i=0; i<argc; i++)
 		if(argv[i])
 			strcat(str, argv[i]);
-		else
-			strcat(str, NULL);
 	return 1;
 }
 
 //Command evaluation and database access
 int commandEval(int fd)
 {
-	//Database
-	char *sql[max];
-	char *str[max];
-	char *err_msg = 0;
-
 	//Server
 	char send[max]; 				//mesajul trimis inapoi de server catre client
 	char recv[max]=" ";				//mesajul primit de server de la client
 	char msg[max];					//buffer pentru construirea mesajului
 	int isAdmin;
+
+	//Database
+	char *sql[max];
+	char *str[max];
+	char *err_msg = 0;
+
+	//Database open
+	int rc = sqlite3_open("topmusic.db", &db);
+	if(rc != SQLITE_OK) 
+	{
+		fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return 1;
+	}
 
 	while(1)
 	{
@@ -64,6 +63,7 @@ int commandEval(int fd)
             perror ("[server]Eroare la read () de la client.\n");
             return 1;
         }
+        printf("received %s from client", recv);
 
         if (strstr (recv, "login ") != NULL)
         {
@@ -107,9 +107,28 @@ int commandEval(int fd)
         }
         else if (strstr (recv, "quit") != NULL)
         {
-
+        	strcpy(send, "quit");
         }
+
+        int sendLength=strlen(send);
+
+        if (write (fd, send, sendLength) <= 0)
+        {
+			perror ("[server]Eroare la write() catre client.\n");
+            continue;
+     	}
+
+        printf("sent %s to client", recv);
+        fflush(stdout);
+
+     	if(strcmp(send,"quit"))
+     	{
+     		close(fd);
+     		break;
+     	}
+
 	}
+	return 0;
 }
 
 
@@ -120,6 +139,8 @@ int main ()
 	struct sockaddr_in from;		
 	int optval=1;					//optiune folosita pentru setsockopt()
 	int sd, client;					//descriptori de socket
+	int fd;							//descriptor folosit pentru parcurgerea listelor de descriptori
+	int nfds;						//numarul maxim de descriptori
 	fd_set readfds;					//multimea descriptorilor de citire
   	fd_set actfds;					//multimea descriptorilor activi
   	struct timeval tv;  			//structura de timp pentru select()
@@ -130,15 +151,16 @@ int main ()
     	return errno;
   	}
 
+  	printf("%d\n",sd);
+
   	//setam pentru socket optiunea SO_REUSEADDR
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR,&optval,sizeof(optval));
   
   	bzero (&server, sizeof (server));
-  	bzero (&from, sizeof (from));
   
   	server.sin_family = AF_INET;	
   	server.sin_addr.s_addr = htonl (INADDR_ANY);
-  	server.sin_port = htons (port);
+  	server.sin_port = htons (PORT);
   
   	//Socket bind
   	if (bind (sd, (struct sockaddr *) &server, sizeof (struct sockaddr)) == -1)
@@ -171,28 +193,30 @@ int main ()
 	  		perror ("[server] Eroare la select().\n");
 	  		return errno;
 		}
+		if (FD_ISSET (sd, &readfds))
+  		{
+  			int fromLen = sizeof(from);
+  			bzero (&from, sizeof (from));
 
-  		int fromLen = sizeof(from)
-  		bzero (&from, sizeof (from));
+	        client = accept (sd, (struct sockaddr *) &from, &fromLen);		//accept
 
-        client = accept (sd, (struct sockaddr *) &from, &fromLen);		//accept
+			if (client < 0)
+		    {
+		      	perror ("[server] Eroare la accept().\n");
+		      	continue;
+		    }
 
-		if (client < 0)
-	    {
-	      	perror ("[server] Eroare la accept().\n");
-	      	continue;
-	    }
+		    if (nfds < client)		//ajusteaza valoarea maximului
+	            nfds = client;
 
-	    if (nfds < client)		//ajusteaza valoarea maximului
-            nfds = client;
-
-	  	FD_SET (client, &actfds);		//includem in lista de descriptori activi si acest socket
-
+		  	FD_SET (client, &actfds);		//includem in lista de descriptori activi si acest socket
+		}
 	  	for (fd = 0; fd <= nfds; fd++)			//parcurgem multimea de descriptori
 		{
+			printf("calling for");
 	  		if (fd != sd && FD_ISSET (fd, &readfds)) 	  	//este un socket de citire pregatit?
 	    	{	
-	      		if (sayHello(fd))
+	      		if (commandEval(fd))
 				{
 		  			printf ("[server] S-a deconectat clientul cu descriptorul %d.\n",fd);
 		  			fflush (stdout);

@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#define port 8080
+#define port 2728
 #define max 1024
 extern int errno;
 
