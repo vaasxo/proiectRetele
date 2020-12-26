@@ -7,8 +7,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sqlite3.h>
 
-#define port 8080
+#define port 8888
 #define max 1024
 extern int errno;
 
@@ -25,14 +26,13 @@ int main ()
   	perror ("[server]Eroare la socket().\n");
     return errno;
   }
-
   
   bzero (&server, sizeof (server));
   bzero (&from, sizeof (from));
   
   server.sin_family = AF_INET;	
-  server.sin_addr.s_addr = inet_addr ("127.0.0.1");
-  server.sin_port = htons (PORT);
+  server.sin_addr.s_addr = htonl (INADDR_ANY);
+  server.sin_port = htons (port);
   
   if (bind (sd, (struct sockaddr *) &server, sizeof (struct sockaddr)) == -1)
   {
@@ -45,3 +45,4 @@ int main ()
     perror ("[server]Eroare la listen().\n");
     return errno;
   }
+}
