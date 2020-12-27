@@ -34,8 +34,7 @@ int commandEval(int fd, fd_set *actfds)
 	char recv[max]=" ";				//mesajul primit de server de la client
 	char msg[max];					//buffer pentru construirea mesajului de return
 	char username[max], password[max], user_admin[max], song_name[max], description[max], genre[max], link[max], comment[max];
-	int isAdmin=1;
-	int isLoggedIn=1;
+	int isLoggedIn=0; //1 - logged in as normal user, 2 - logged in as admin
 	int i, j;
 
 	//Database
@@ -87,7 +86,7 @@ int commandEval(int fd, fd_set *actfds)
 
     	isLoggedIn=1;
     	//if admin
-    		//set isAdmin 1
+    		//set isLoggedIn 2
     }
     else if (strstr (recv, "register ") != NULL)
     {
@@ -116,12 +115,8 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		password[j++]=recv[i++];
     	}
-
-    	printf("%s %s %s", user_admin,username,password);
-    	fflush(stdout);
-
     }
-    else if ((strstr (recv, "delete song ") != NULL) && isAdmin==1 && isLoggedIn==1)
+    else if ((strstr (recv, "delete song ") != NULL) isLoggedIn==2)
     {
     	memset(song_name, 0, sizeof(song_name));
 
@@ -132,11 +127,8 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		song_name[j++]=recv[i++];
     	}
-
-    	printf("%s",song_name);
-    	fflush(stdout);
     }
-    else if ((strstr (recv, "restrict vote ") != NULL) && isAdmin==1 && isLoggedIn==1)
+    else if ((strstr (recv, "restrict vote ") != NULL) && isLoggedIn==2)
     {
     	memset(username, 0, sizeof(username));
 
@@ -147,11 +139,8 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		username[j++]=recv[i++];
     	}
-
-    	printf("%s",username);
-    	fflush(stdout);
     }
-    else if (strstr (recv, "add song ") != NULL)
+    else if (strstr (recv, "add song ") != NULL && isLoggedIn==1)
     {
     	memset(song_name, 0, sizeof(song_name));
     	memset(description, 0, sizeof(description));
@@ -186,11 +175,8 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		link[j++]=recv[i++];
     	}
-
-    	printf("%s %s %s %s", song_name,description,genre,link);
-    	fflush(stdout);
     }
-    else if (strstr (recv, "vote song ") != NULL)
+    else if (strstr (recv, "vote song ") != NULL && isLoggedIn==1)
     {
     	memset(song_name, 0, sizeof(song_name));
 
@@ -201,11 +187,8 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		song_name[j++]=recv[i++];
     	}
-
-    	printf("%s",song_name);
-    	fflush(stdout);
     }
-    else if (strstr (recv, "comment song ") != NULL)
+    else if (strstr (recv, "comment song ") != NULL && isLoggedIn==1)
     {
     	memset(song_name, 0, sizeof(song_name));
     	memset(comment, 0, sizeof(comment));
@@ -224,15 +207,12 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		comment[j++]=recv[i++];
     	}
-
-    	printf("%s, %s",song_name, comment);
-    	fflush(stdout);
     }
-    else if (strstr (recv, "top song general ") != NULL)
+    else if (strstr (recv, "top song general ") != NULL && isLoggedIn==1)
     {
     	//no parameters, will just return the sorted top
     }
-    else if (strstr (recv, "top song genre ") != NULL)
+    else if (strstr (recv, "top song genre ") != NULL && isLoggedIn==1)
     {
     	memset(genre, 0, sizeof(genre));
 
@@ -243,9 +223,6 @@ int commandEval(int fd, fd_set *actfds)
     	{
     		genre[j++]=recv[i++];
     	}
-
-    	printf("%s",genre);
-    	fflush(stdout);
     }
     else if (strstr (recv, "commands") != NULL)
     {
