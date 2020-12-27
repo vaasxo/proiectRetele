@@ -32,9 +32,11 @@ int commandEval(int fd, fd_set *actfds)
 	//Server
 	char send[max]; 				//mesajul trimis inapoi de server catre client
 	char recv[max]=" ";				//mesajul primit de server de la client
-	char msg[max];					//buffer pentru construirea mesajului
-	int isAdmin=0;
-	int isLoggedIn=0;
+	char msg[max];					//buffer pentru construirea mesajului de return
+	char username[max], password[max], user_admin[max], song_name[max], description[max], genre[max], link[max], comment[max];
+	int isAdmin=1;
+	int isLoggedIn=1;
+	int i, j;
 
 	//Database
 	char *sql[max];
@@ -59,43 +61,191 @@ int commandEval(int fd, fd_set *actfds)
         perror ("[server]Eroare la read () de la client.\n");
         return 1;
     }
-    //printf("received %s from client", recv);
+
+    recv[strcspn(recv, "\n")] = 0;
 
     if (strstr (recv, "login ") != NULL)
     {
+    	memset(username, 0, sizeof(username));
+    	memset(password, 0, sizeof(password));
 
+    	strcpy(recv, recv+6);			//scapam de comanda in sine din mesajul primit
+    									//Cum comanda e fixa, folosim +6 in loc de strlen
+    	i=1, j=0;						//i - index pentru recv, j - index pentru parametri
+    	while(recv[i]!='\'')
+    	{
+    		username[j++]=recv[i++];
+    	}
+
+    	i+=3;							// sarim peste spatiul dintre comenzi
+    	j=0;							// resetam index-ul pentru parametri
+    	while(recv[i]!='\'')
+    	{
+    		password[j++]=recv[i++];
+    	}
+
+
+    	isLoggedIn=1;
+    	//if admin
+    		//set isAdmin 1
     }
     else if (strstr (recv, "register ") != NULL)
     {
+    	memset(user_admin, 0, sizeof(user_admin));
+    	memset(username, 0, sizeof(username));
+    	memset(password, 0, sizeof(password));
+
+    	strcpy(recv, recv+9);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		user_admin[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		username[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		password[j++]=recv[i++];
+    	}
+
+    	printf("%s %s %s", user_admin,username,password);
+    	fflush(stdout);
 
     }
-    else if ((strstr (recv, "delete song ") != NULL) && isAdmin==1)
+    else if ((strstr (recv, "delete song ") != NULL) && isAdmin==1 && isLoggedIn==1)
     {
+    	memset(song_name, 0, sizeof(song_name));
 
+    	strcpy(recv, recv+12);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		song_name[j++]=recv[i++];
+    	}
+
+    	printf("%s",song_name);
+    	fflush(stdout);
     }
-    else if ((strstr (recv, "restrict vote ") != NULL) && isAdmin==1)
+    else if ((strstr (recv, "restrict vote ") != NULL) && isAdmin==1 && isLoggedIn==1)
     {
+    	memset(username, 0, sizeof(username));
 
+    	strcpy(recv, recv+14);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		username[j++]=recv[i++];
+    	}
+
+    	printf("%s",username);
+    	fflush(stdout);
     }
     else if (strstr (recv, "add song ") != NULL)
     {
+    	memset(song_name, 0, sizeof(song_name));
+    	memset(description, 0, sizeof(description));
+    	memset(genre, 0, sizeof(genre));
+    	memset(link, 0, sizeof(link));
 
+    	strcpy(recv, recv+9);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		song_name[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		description[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		genre[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		link[j++]=recv[i++];
+    	}
+
+    	printf("%s %s %s %s", song_name,description,genre,link);
+    	fflush(stdout);
     }
     else if (strstr (recv, "vote song ") != NULL)
     {
+    	memset(song_name, 0, sizeof(song_name));
 
+    	strcpy(recv, recv+10);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		song_name[j++]=recv[i++];
+    	}
+
+    	printf("%s",song_name);
+    	fflush(stdout);
     }
     else if (strstr (recv, "comment song ") != NULL)
     {
+    	memset(song_name, 0, sizeof(song_name));
+    	memset(comment, 0, sizeof(comment));
 
+    	strcpy(recv, recv+13);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		song_name[j++]=recv[i++];
+    	}
+
+    	i+=3;
+    	j=0;
+    	while(recv[i]!='\'')
+    	{
+    		comment[j++]=recv[i++];
+    	}
+
+    	printf("%s, %s",song_name, comment);
+    	fflush(stdout);
     }
     else if (strstr (recv, "top song general ") != NULL)
     {
-
+    	//no parameters, will just return the sorted top
     }
     else if (strstr (recv, "top song genre ") != NULL)
     {
+    	memset(genre, 0, sizeof(genre));
 
+    	strcpy(recv, recv+15);
+
+    	i=1, j=0;
+    	while(recv[i]!='\'')
+    	{
+    		genre[j++]=recv[i++];
+    	}
+
+    	printf("%s",genre);
+    	fflush(stdout);
     }
     else if (strstr (recv, "commands") != NULL)
     {
