@@ -52,7 +52,7 @@ int main()
       return errno;
     }
 
-    beginText();
+    //beginText();
 
     while(1)
     {
