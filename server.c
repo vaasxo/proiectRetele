@@ -1,13 +1,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
 #include <sqlite3.h>
 
 #define PORT 2728
@@ -270,7 +268,7 @@ int main ()
 	struct sockaddr_in server, from;		//structurile pentru server si clienti		
 	int sd, client;					//descriptori de socket
 	pid_t pid;
-	int fromLen = sizeof(from);
+	unsigned int fromLen = sizeof(from);
 
 	if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
   	{

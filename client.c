@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -32,7 +31,7 @@ void endText()
 
 int main() 
 {
-    int sd, msgLength;
+    int sd;
     struct sockaddr_in server;
     char send[maxchr];
     char recv[maxchr];
@@ -53,7 +52,7 @@ int main()
       return errno;
     }
 
-    //beginText();
+    beginText();
 
     while(1)
     {
