@@ -7,9 +7,10 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#define port 2728
-#define max 1024
-extern int errno;
+
+#define PORT 2728
+#define maxchr 1024
+
 
 void beginText()
 {
@@ -33,8 +34,8 @@ int main()
 {
     int sd, msgLength;
     struct sockaddr_in server;
-    char send[max];
-    char recv[max];
+    char send[maxchr];
+    char recv[maxchr];
 
     if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
     {
@@ -44,7 +45,7 @@ int main()
 
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = inet_addr ("127.0.0.1");
-    server.sin_port = htons (port);
+    server.sin_port = htons (PORT);
 
     if (connect (sd, (struct sockaddr *) &server,sizeof (struct sockaddr)) == -1)
     {
@@ -60,8 +61,8 @@ int main()
     	printf(">");
     	fflush(stdout);
     	
-     	memset (send, 0, max);
-     	read (0, send, max);
+     	memset (send, 0, maxchr);
+     	read (0, send, maxchr);
 
      	write (sd, send, sizeof (send));
      	memset (recv, 0, sizeof (recv));

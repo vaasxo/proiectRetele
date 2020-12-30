@@ -11,8 +11,7 @@
 #include <sqlite3.h>
 
 #define PORT 2728
-#define max 1024
-extern int errno;
+#define maxchr 1024
 
 sqlite3 *db;
 
@@ -30,17 +29,17 @@ int callback(void *str, int argc, char **argv, char **azColName)
 int commandEval(int fd)
 {
 	//Server
-	char send[max]; 				//mesajul trimis inapoi de server catre client
-	char recv[max]=" ";				//mesajul primit de server de la client
-	char msg[max];					//buffer pentru construirea mesajului de return
-	char username[max], password[max], user_admin[max], song_name[max], description[max], genre[max], link[max], comment[max];
+	char send[maxchr]; 				//mesajul trimis inapoi de server catre client
+	char recv[maxchr]=" ";				//mesajul primit de server de la client
+	char msg[maxchr];					//buffer pentru construirea mesajului de return
+	char username[maxchr], password[maxchr], user_admin[maxchr], song_name[maxchr], description[maxchr], genre[maxchr], link[maxchr], comment[maxchr];
 	int isLoggedIn=0; //1 - logged in as normal user, 2 - logged in as admin
 	int i, j;
 	int quit=0;
 
 	//Database
-	char *sql[max];
-	char *str[max];
+	char *sql[maxchr];
+	char *str[maxchr];
 	char *err_msg = 0;
 
 	//Database open
@@ -271,7 +270,7 @@ int main ()
 	struct sockaddr_in server, from;		//structurile pentru server si clienti		
 	int sd, client;					//descriptori de socket
 	pid_t pid;
-	int fromLen;
+	int fromLen = sizeof(from);
 
 	if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
   	{
