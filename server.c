@@ -1,3 +1,4 @@
+#include "commandEval.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -6,12 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sqlite3.h>
 
 #define PORT 2728
-#define maxchr 1024
 
-sqlite3 *db;
+/*sqlite3 *db;
 
 //Database functions
 int callback(void *str, int argc, char **argv, char **azColName)
@@ -259,76 +258,66 @@ int commandEval(int fd)
     //fflush(stdout);
 	sqlite3_close(db);
 	return 0;
-}
+}*/
 
+int main() {
+    //Server
+    struct sockaddr_in server, from;        //structurile pentru server si clienti
+    int sd, client;                         //descriptori de socket
+    pid_t pid;
+    unsigned int fromLen = sizeof(from);
 
-int main ()
-{
-	//Server
-	struct sockaddr_in server, from;		//structurile pentru server si clienti		
-	int sd, client;					//descriptori de socket
-	pid_t pid;
-	unsigned int fromLen = sizeof(from);
+    if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("[server]Eroare la socket().\n");
+        return errno;
+    }
 
-	if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
-  	{
-  		perror ("[server]Eroare la socket().\n");
-    	return errno;
-  	}
+    fromLen = sizeof(from);
+    bzero(&from, sizeof(from));
+    bzero(&server, sizeof(server));
 
-  	fromLen = sizeof(from);
-  	bzero (&from, sizeof (from));  	  
-  	bzero (&server, sizeof (server));
-  
-  	server.sin_family = AF_INET;	
-  	server.sin_addr.s_addr = htonl (INADDR_ANY);
-  	server.sin_port = htons (PORT);
-  
-  	//Socket bind
-  	if (bind (sd, (struct sockaddr *) &server, sizeof (struct sockaddr)) == -1)
-  	{
-    	perror ("[server]Eroare la bind().\n");
-    	return errno;
-  	}
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
+    server.sin_port = htons(PORT);
 
-  	//Start Listening
-  	if (listen (sd, 5) == -1)
-  	{
-    	perror ("[server]Eroare la listen().\n");
-    	return errno;
-  	}
+    //Socket bind
+    if (bind(sd, (struct sockaddr *) &server, sizeof(struct sockaddr)) == -1) {
+        perror("[server]Eroare la bind().\n");
+        return errno;
+    }
 
-  	while(1)
-  	{
-        client = accept (sd, (struct sockaddr *) &from, &fromLen);		//accept
+    //Start Listening
+    if (listen(sd, 5) == -1) {
+        perror("[server]Eroare la listen().\n");
+        return errno;
+    }
 
-		if (client < 0)
-	    {
-	      	perror ("[server] Eroare la accept().\n");
-	      	continue;
-	    }
+    while (1) {
+        client = accept(sd, (struct sockaddr *) &from, &fromLen);
 
-	    pid=fork();
+        if (client < 0) {
+            perror("[server] Eroare la accept().\n");
+            continue;
+        }
 
-		if (pid < 0)
-	    {
-	      	perror ("[server] Eroare la fork().\n");
-	      	continue;
-	    }	    
+        pid = fork();
 
-	    if(pid==0)
-	    {
-	    	close(sd);
+        if (pid < 0) {
+            perror("[server] Eroare la fork().\n");
+            continue;
+        }
 
-	    	if (commandEval(client))
-			{
-	  			printf ("[server] S-a deconectat clientul cu descriptorul %d.\n",client);
-	  			fflush (stdout);
-	  		}
+        if (pid == 0) {
+            close(sd);
 
-	  		close(client);
-	  		exit(0);
-	    }
-	    close(client);    			
-	}
+            if (commandEval(client)) {
+                printf("[server] S-a deconectat clientul cu descriptorul %d.\n", client);
+                fflush(stdout);
+            }
+
+            close(client);
+            exit(0);
+        }
+        close(client);
+    }
 }
