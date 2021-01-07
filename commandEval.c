@@ -11,17 +11,23 @@
 sqlite3 *db;
 
 //Database functions
-int callback(void *str, int argc, char **argv, char **azColName)
+int callback_select(void *str, int argc, char **argv, char **azColName)
 {
-    str = (char*) str;
-    for (int i=0; i<argc; i++)
-        if(argv[i])
-            strcat(str, argv[i]);
-    return 1;
+    char* data=(char*)str;
+    for(int i=0;i<argc;i++)
+    {
+        printf("%s \n", argv[i]);
+        fflush(stdout);
+        strcat(data, argv[i]);
+    }
+    return 0;
 }
 
-int login(char* username, char* password, char* recv, int rc)
+int login(char* username, char* password, char* recv)
 {
+    int rc;
+    char queryRes[maxchr];
+
     int i=1, j=0;						    //i - index pentru recv, j - index pentru parametri
     while(recv[i]!='\'')
     {
@@ -35,17 +41,29 @@ int login(char* username, char* password, char* recv, int rc)
         password[j++]=recv[i++];
     }
 
-    char *sql = "SELECT isAdmin FROM users WHERE uid = ? AND password = ?";
-    sqlite3_stmt *res;
+    char sql[maxchr];
 
-    rc = sqlite3_prepare_v2(db,sql,-1, &res, 0);
-    if (rc == SQLITE_OK)
-    {
-    }
+    sprintf(sql,"SELECT isAdmin FROM users WHERE uid ='%s' AND password ='%s';",username, password);
+
+    printf("%s", sql);
+    fflush(stdout);
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strcmp(queryRes, "1")==0)
+        return 1;
+    else if(strcmp(queryRes, "2")==0)
+        return 2;
+    else
+        return -1;
 }
 
-int reg(char* user_admin, char* username, char* password, char* recv, int rc)
+int reg(char* user_admin, char* username, char* password, char* recv)
 {
+    int rc;
+
     int i=1, j=0;
     while(recv[i]!='\'')
     {
@@ -66,9 +84,36 @@ int reg(char* user_admin, char* username, char* password, char* recv, int rc)
         password[j++]=recv[i++];
     }
 
+    int isAdmin;
+
+    if(strstr(user_admin,"user")==0)
+        isAdmin=1;
+    else if (strstr(user_admin,"admin")==0)
+        isAdmin=2;
+    else
+        return -1;
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql, "INSERT INTO users VALUES('%s', '%s', 1, %d);", username,password,isAdmin);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc == SQLITE_DONE)
+    {
+        return 1;
+    }
+    else
+    {
+        return -2;
+    }
 }
 
-int deleteSong(char* song_name, char* recv, int rc)
+int deleteSong(char* song_name, char* recv)
 {
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -77,7 +122,7 @@ int deleteSong(char* song_name, char* recv, int rc)
     }
 }
 
-int restrictVote(char* deleteUser, char* recv, int rc)
+int restrictVote(char* deleteUser, char* recv)
 {
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -86,7 +131,7 @@ int restrictVote(char* deleteUser, char* recv, int rc)
     }
 }
 
-int addSong(char* song_name, char* description, char* genre, char* link, char* recv, int rc)
+int addSong(char* song_name, char* description, char* genre, char* link, char* recv)
 {
 
     int i=1, j=0;
@@ -117,7 +162,7 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
     }
 }
 
-int voteSong(char* song_name, char* recv, int rc)
+int voteSong(char* song_name, char* recv)
 {
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -126,7 +171,7 @@ int voteSong(char* song_name, char* recv, int rc)
     }
 }
 
-int commentSong(char* song_name, char* comment, char* recv, int rc)
+int commentSong(char* song_name, char* comment, char* recv)
 {
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -142,12 +187,12 @@ int commentSong(char* song_name, char* comment, char* recv, int rc)
     }
 }
 
-int sortGeneral(char* sort, int rc)
+int sortGeneral(char* sort)
 {
     //TODO sorting of songs by votes
 }
 
-int sortGenre(char* genre, char* recv, char* sort, int rc)
+int sortGenre(char* genre, char* recv, char* sort)
 {
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -164,13 +209,7 @@ int commandEval(int fd)
     char msg[maxchr];					//buffer pentru construirea mesajului de return
     char username[maxchr], deleteUser[maxchr], password[maxchr], user_admin[maxchr], song_name[maxchr], description[maxchr], genre[maxchr], link[maxchr], comment[maxchr], sort[maxchr];
     int isLoggedIn=0; //1 - logged in as normal user, 2 - logged in as admin
-    int i, j;
     int quit=0;
-
-    //Database
-    char *sql;
-    char *str[maxchr];
-    char *err_msg = 0;
 
     //Database open
     int rc = sqlite3_open("topmusic.db", &db);
@@ -203,7 +242,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+6);
 
-            int loginResult=login(username,password,recv,rc);
+            int loginResult=login(username,password,recv);
             switch(loginResult){
                 case -1:
                     strcpy(send, "cannot log in - username or password incorrect\n");
@@ -229,18 +268,16 @@ int commandEval(int fd)
 
             strcpy(recv, recv+9);
 
-            int regResult = reg(user_admin,username,password,recv,rc);
+            int regResult = reg(user_admin,username,password,recv);
             switch(regResult){
+                case -2:
+                    strcpy(send, "cannot register - user already in database!\n");
+                    break;
                 case -1:
                     strcpy(send, "cannot register - make sure to include user/admin!\n");
                     break;
                 case 1:
-                    strcpy(send, "register as user successful!\n");
-                    isLoggedIn=1;
-                    break;
-                case 2:
-                    strcpy(send, "register as admin successful!\n");
-                    isLoggedIn=2;
+                    strcpy(send, "register successful!\n");
                     break;
                 default:
                     strcpy(send, "error trying to register - probably the programmer's fault!\n");
@@ -253,7 +290,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+12);
 
-            int deleteResult=deleteSong(song_name,recv,rc);
+            int deleteResult=deleteSong(song_name,recv);
             switch(deleteResult){
                 case -1:
                     strcpy(send, "cannot delete song - not found in database\n");
@@ -272,10 +309,10 @@ int commandEval(int fd)
 
             strcpy(recv, recv+14);
 
-            int restrictResult=restrictVote(deleteUser,recv,rc);
+            int restrictResult=restrictVote(deleteUser,recv);
             switch(restrictResult){
                 case -1:
-                    strcpy(send, "cannot restrict user righ to vote - not found in database\n");
+                    strcpy(send, "cannot restrict user right to vote - not found in database\n");
                     break;
                 case 1:
                     strcpy(send, "successfully restricted voting permissons!\n");
@@ -294,7 +331,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+9);
 
-            int addSongResult = addSong(song_name, description, genre, link, recv, rc);
+            int addSongResult = addSong(song_name, description, genre, link, recv);
             switch(addSongResult){
                 case -1:
                     strcpy(send, "cannot add song - already in database\n");
@@ -313,7 +350,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+10);
 
-            int voteSongResult=voteSong(song_name,recv,rc);
+            int voteSongResult=voteSong(song_name,recv);
             switch(voteSongResult){
                 case -1:
                     strcpy(send, "cannot vote song - you do not have permission to vote!\n");
@@ -333,7 +370,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+13);
 
-            int commSongResult=commentSong(song_name,comment,recv,rc);
+            int commSongResult=commentSong(song_name,comment,recv);
             switch(commSongResult){
                 case -1:
                     strcpy(send, "error commenting on song - make sure you use the foramt properly!\n");
@@ -351,7 +388,7 @@ int commandEval(int fd)
         {
             memset(sort,0,sizeof (sort));
 
-            int sortGeneralResult=sortGeneral(sort, rc);
+            int sortGeneralResult=sortGeneral(sort);
             if(sortGeneralResult)
                 strcpy(send, sort);
             else
@@ -364,7 +401,7 @@ int commandEval(int fd)
 
             strcpy(recv, recv+15);
 
-            int sortGenreResult=sortGenre(genre, recv, sort, rc);
+            int sortGenreResult=sortGenre(genre, recv, sort);
             if(sortGenreResult)
                 strcpy(send, sort);
             else
