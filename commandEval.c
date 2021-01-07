@@ -10,13 +10,11 @@
 
 sqlite3 *db;
 
-//Database functions
 int callback_select(void *str, int argc, char **argv, char **azColName)
 {
     char* data=(char*)str;
     for(int i=0;i<argc;i++)
     {
-        printf("%s \n", argv[i]);
         fflush(stdout);
         strcat(data, argv[i]);
     }
@@ -44,9 +42,6 @@ int login(char* username, char* password, char* recv)
     char sql[maxchr];
 
     sprintf(sql,"SELECT isAdmin FROM users WHERE uid ='%s' AND password ='%s';",username, password);
-
-    printf("%s", sql);
-    fflush(stdout);
 
     rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
     if(rc!=SQLITE_OK)
@@ -115,20 +110,53 @@ int reg(char* user_admin, char* username, char* password, char* recv)
 
 int deleteSong(char* song_name, char* recv)
 {
+    int rc;
     int i=1, j=0;
     while(recv[i]!='\'')
     {
         song_name[j++]=recv[i++];
     }
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql, "DELETE FROM songs WHERE name='%s';", song_name);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        return -1;
+    }
+    else return 1;
 }
 
 int restrictVote(char* deleteUser, char* recv)
 {
+    int rc;
     int i=1, j=0;
     while(recv[i]!='\'')
     {
         deleteUser[j++]=recv[i++];
     }
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql, "UPDATE users SET canVote=0 WHERE uid='%s';", deleteUser);
+
+    printf("%s", sql);
+    fflush(stdout);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        return -1;
+    }
+    else return 1;
 }
 
 int addSong(char* song_name, char* description, char* genre, char* link, char* recv)
