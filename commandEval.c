@@ -1,6 +1,3 @@
-//
-// Created by xovaa on 1/6/2021.
-//
 #include "commandEval.h"
 #include <sys/types.h>
 #include <errno.h>
@@ -23,19 +20,155 @@ int callback(void *str, int argc, char **argv, char **azColName)
     return 1;
 }
 
+int login(char* username, char* password, char* recv, int rc)
+{
+    int i=1, j=0;						    //i - index pentru recv, j - index pentru parametri
+    while(recv[i]!='\'')
+    {
+        username[j++]=recv[i++];
+    }
+
+    i+=3;							// sarim peste spatiul dintre comenzi
+    j=0;							// resetam index-ul pentru parametri
+    while(recv[i]!='\'')
+    {
+        password[j++]=recv[i++];
+    }
+
+    char *sql = "SELECT isAdmin FROM users WHERE uid = ? AND password = ?";
+    sqlite3_stmt *res;
+
+    rc = sqlite3_prepare_v2(db,sql,-1, &res, 0);
+    if (rc == SQLITE_OK)
+    {
+    }
+}
+
+int reg(char* user_admin, char* username, char* password, char* recv, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        user_admin[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        username[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        password[j++]=recv[i++];
+    }
+
+}
+
+int deleteSong(char* song_name, char* recv, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        song_name[j++]=recv[i++];
+    }
+}
+
+int restrictVote(char* deleteUser, char* recv, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        deleteUser[j++]=recv[i++];
+    }
+}
+
+int addSong(char* song_name, char* description, char* genre, char* link, char* recv, int rc)
+{
+
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        song_name[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        description[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        genre[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        link[j++]=recv[i++];
+    }
+}
+
+int voteSong(char* song_name, char* recv, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        song_name[j++]=recv[i++];
+    }
+}
+
+int commentSong(char* song_name, char* comment, char* recv, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        song_name[j++]=recv[i++];
+    }
+
+    i+=3;
+    j=0;
+    while(recv[i]!='\'')
+    {
+        comment[j++]=recv[i++];
+    }
+}
+
+int sortGeneral(char* sort, int rc)
+{
+    //TODO sorting of songs by votes
+}
+
+int sortGenre(char* genre, char* recv, char* sort, int rc)
+{
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        genre[j++]=recv[i++];
+    }
+}
+
 int commandEval(int fd)
 {
     //Server
-    char send[maxchr]; 				//mesajul trimis inapoi de server catre client
-    char recv[maxchr]=" ";				//mesajul primit de server de la client
+    char send[maxchr]; 				    //mesajul trimis inapoi de server catre client
+    char recv[maxchr];				    //mesajul primit de server de la client
     char msg[maxchr];					//buffer pentru construirea mesajului de return
-    char username[maxchr], password[maxchr], user_admin[maxchr], song_name[maxchr], description[maxchr], genre[maxchr], link[maxchr], comment[maxchr];
+    char username[maxchr], deleteUser[maxchr], password[maxchr], user_admin[maxchr], song_name[maxchr], description[maxchr], genre[maxchr], link[maxchr], comment[maxchr], sort[maxchr];
     int isLoggedIn=0; //1 - logged in as normal user, 2 - logged in as admin
     int i, j;
     int quit=0;
 
     //Database
-    char *sql[maxchr];
+    char *sql;
     char *str[maxchr];
     char *err_msg = 0;
 
@@ -68,25 +201,25 @@ int commandEval(int fd)
             memset(username, 0, sizeof(username));
             memset(password, 0, sizeof(password));
 
-            strcpy(recv, recv+6);			//scapam de comanda in sine din mesajul primit
-            //Cum comanda e fixa, folosim +6 in loc de strlen
-            i=1, j=0;						//i - index pentru recv, j - index pentru parametri
-            while(recv[i]!='\'')
-            {
-                username[j++]=recv[i++];
+            strcpy(recv, recv+6);
+
+            int loginResult=login(username,password,recv,rc);
+            switch(loginResult){
+                case -1:
+                    strcpy(send, "cannot log in - username or password incorrect\n");
+                    break;
+                case 1:
+                    strcpy(send, "log in as user successful!\n");
+                    isLoggedIn=1;
+                    break;
+                case 2:
+                    strcpy(send, "log in as admin successful!\n");
+                    isLoggedIn=2;
+                    break;
+                default:
+                    strcpy(send, "error trying to log in - probably the programmer's fault!\n");
+                    break;
             }
-
-            i+=3;							// sarim peste spatiul dintre comenzi
-            j=0;							// resetam index-ul pentru parametri
-            while(recv[i]!='\'')
-            {
-                password[j++]=recv[i++];
-            }
-
-
-            isLoggedIn=1;
-            //if admin
-            //set isLoggedIn 2
         }
         else if (strstr (recv, "register ") != NULL)
         {
@@ -96,24 +229,22 @@ int commandEval(int fd)
 
             strcpy(recv, recv+9);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                user_admin[j++]=recv[i++];
-            }
-
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                username[j++]=recv[i++];
-            }
-
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                password[j++]=recv[i++];
+            int regResult = reg(user_admin,username,password,recv,rc);
+            switch(regResult){
+                case -1:
+                    strcpy(send, "cannot register - make sure to include user/admin!\n");
+                    break;
+                case 1:
+                    strcpy(send, "register as user successful!\n");
+                    isLoggedIn=1;
+                    break;
+                case 2:
+                    strcpy(send, "register as admin successful!\n");
+                    isLoggedIn=2;
+                    break;
+                default:
+                    strcpy(send, "error trying to register - probably the programmer's fault!\n");
+                    break;
             }
         }
         else if ((strstr (recv, "delete song ") != NULL) && isLoggedIn==2)
@@ -122,22 +253,36 @@ int commandEval(int fd)
 
             strcpy(recv, recv+12);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                song_name[j++]=recv[i++];
+            int deleteResult=deleteSong(song_name,recv,rc);
+            switch(deleteResult){
+                case -1:
+                    strcpy(send, "cannot delete song - not found in database\n");
+                    break;
+                case 1:
+                    strcpy(send, "successfully deleted song!\n");
+                    break;
+                default:
+                    strcpy(send, "error trying to delete song - probably the programmer's fault!\n");
+                    break;
             }
         }
         else if ((strstr (recv, "restrict vote ") != NULL) && isLoggedIn==2)
         {
-            memset(username, 0, sizeof(username));
+            memset(deleteUser, 0, sizeof(deleteUser));
 
             strcpy(recv, recv+14);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                username[j++]=recv[i++];
+            int restrictResult=restrictVote(deleteUser,recv,rc);
+            switch(restrictResult){
+                case -1:
+                    strcpy(send, "cannot restrict user righ to vote - not found in database\n");
+                    break;
+                case 1:
+                    strcpy(send, "successfully restricted voting permissons!\n");
+                    break;
+                default:
+                    strcpy(send, "error trying to restrict vote permission - probably the programmer's fault!\n");
+                    break;
             }
         }
         else if (strstr (recv, "add song ") != NULL && isLoggedIn==1)
@@ -149,31 +294,17 @@ int commandEval(int fd)
 
             strcpy(recv, recv+9);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                song_name[j++]=recv[i++];
-            }
-
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                description[j++]=recv[i++];
-            }
-
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                genre[j++]=recv[i++];
-            }
-
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                link[j++]=recv[i++];
+            int addSongResult = addSong(song_name, description, genre, link, recv, rc);
+            switch(addSongResult){
+                case -1:
+                    strcpy(send, "cannot add song - already in database\n");
+                    break;
+                case 1:
+                    strcpy(send, "song added successfully!\n");
+                    break;
+                default:
+                    strcpy(send, "error trying to add song - probably the programmer's fault!\n");
+                    break;
             }
         }
         else if (strstr (recv, "vote song ") != NULL && isLoggedIn==1)
@@ -182,10 +313,17 @@ int commandEval(int fd)
 
             strcpy(recv, recv+10);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                song_name[j++]=recv[i++];
+            int voteSongResult=voteSong(song_name,recv,rc);
+            switch(voteSongResult){
+                case -1:
+                    strcpy(send, "cannot vote song - you do not have permission to vote!\n");
+                    break;
+                case 1:
+                    strcpy(send, "successfully voted!\n");
+                    break;
+                default:
+                    strcpy(send, "error trying to vote song - probably the programmer's fault!\n");
+                    break;
             }
         }
         else if (strstr (recv, "comment song ") != NULL && isLoggedIn==1)
@@ -195,34 +333,42 @@ int commandEval(int fd)
 
             strcpy(recv, recv+13);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                song_name[j++]=recv[i++];
+            int commSongResult=commentSong(song_name,comment,recv,rc);
+            switch(commSongResult){
+                case -1:
+                    strcpy(send, "error commenting on song - make sure you use the foramt properly!\n");
+                    break;
+                case 1:
+                    strcpy(send, "successfully commented!\n");
+                    break;
+                default:
+                    strcpy(send, "error trying to comment on song - probably the programmer's fault!\n");
+                    break;
             }
 
-            i+=3;
-            j=0;
-            while(recv[i]!='\'')
-            {
-                comment[j++]=recv[i++];
-            }
         }
         else if (strstr (recv, "top song general ") != NULL && isLoggedIn==1)
         {
-            //no parameters, will just return the sorted top
+            memset(sort,0,sizeof (sort));
+
+            int sortGeneralResult=sortGeneral(sort, rc);
+            if(sortGeneralResult)
+                strcpy(send, sort);
+            else
+                strcpy(send, "error trying to sort by votes - probably the programmer's fault!\n");
         }
         else if (strstr (recv, "top song genre ") != NULL && isLoggedIn==1)
         {
             memset(genre, 0, sizeof(genre));
+            memset(sort,0,sizeof (sort));
 
             strcpy(recv, recv+15);
 
-            i=1, j=0;
-            while(recv[i]!='\'')
-            {
-                genre[j++]=recv[i++];
-            }
+            int sortGenreResult=sortGenre(genre, recv, sort, rc);
+            if(sortGenreResult)
+                strcpy(send, sort);
+            else
+                strcpy(send, "error trying to sort by genre - probably the programmer's fault!\n");
         }
         else if (strstr (recv, "commands") != NULL)
         {
@@ -246,7 +392,7 @@ int commandEval(int fd)
             strcpy(send, "command not recognized! For a list of available commands, try 'commands'");
         }
 
-        int sendLength=strlen(send);
+        int sendLength=(int)strlen(send);
 
         if (write (fd, send, sendLength) <= 0)
         {
