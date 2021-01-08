@@ -198,7 +198,7 @@ int restrictVote(char* deleteUser, char* recv)
     if(rc!=SQLITE_OK)
         return 0;
 
-    if(strlen(queryRes)==1)
+    if(strlen(queryRes)==0)
         return -1;
 
     printf("%s",queryRes);
@@ -223,6 +223,7 @@ int restrictVote(char* deleteUser, char* recv)
 
 int addSong(char* song_name, char* description, char* genre, char* link, char* recv)
 {
+    //TODO Add multiple genres
     int rc;
     char queryRes[maxchr];
 
@@ -302,6 +303,7 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
 
 int voteSong(char* song_name, char* recv)
 {
+    //TODO check if user can vote ffs
     int rc;
     char queryRes[maxchr];
 
@@ -452,6 +454,7 @@ int sortGeneral(char* sort)
 
 int sortGenre(char* genre, char* recv, char* sort)
 {
+    //TODO Check for one genre in a single column with multiple genres
     int rc;
     char queryRes[maxchr];
 
