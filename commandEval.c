@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sqlite3.h>
+#include<stdlib.h>
 
 #define maxchr 1024
 
@@ -15,8 +16,33 @@ int callback_select(void *str, int argc, char **argv, char **azColName)
     char* data=(char*)str;
     for(int i=0;i<argc;i++)
     {
-        fflush(stdout);
         strcat(data, argv[i]);
+    }
+    return 0;
+}
+
+int callback_sort(void *str, int argc, char **argv, char **azColName)
+{
+    char* data= (char*)str;
+    for(int i = 0; i<argc; i++)
+    {
+        strcat(data,"- ");
+        strcat(data,argv[i]);
+        strcat(data,"\n");
+    }
+    return 0;
+}
+
+int callback_comm(void *str, int argc, char **argv, char **azColName)
+{
+    char* data= (char*)str;
+    for(int i = 0; i<argc-1; i++)
+    {
+        strcat (data, "- ");
+        strcat(data,argv[i]);
+        strcat (data, " said '");
+        strcat(data,argv[i+1]);
+        strcat(data,"'\n");
     }
     return 0;
 }
@@ -42,6 +68,8 @@ int login(char* username, char* password, char* recv)
     char sql[maxchr];
 
     sprintf(sql,"SELECT isAdmin FROM users WHERE uid ='%s' AND password ='%s';",username, password);
+
+    memset(queryRes,0,sizeof (queryRes));
 
     rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
     if(rc!=SQLITE_OK)
@@ -111,6 +139,8 @@ int reg(char* user_admin, char* username, char* password, char* recv)
 int deleteSong(char* song_name, char* recv)
 {
     int rc;
+    char queryRes[maxchr];
+
     int i=1, j=0;
     while(recv[i]!='\'')
     {
@@ -120,14 +150,28 @@ int deleteSong(char* song_name, char* recv)
     char sql[maxchr];
     sqlite3_stmt *stmt;
 
+    sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==0)
+        return -1;
+
+    memset(sql,0,sizeof(sql));
+
     sprintf(sql, "DELETE FROM songs WHERE name='%s';", song_name);
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
-    rc = sqlite3_step(stmt);
+    rc=sqlite3_step(stmt);
+
     if (rc != SQLITE_DONE)
     {
-        return -1;
+        return 0;
     }
     else return 1;
 }
@@ -135,6 +179,8 @@ int deleteSong(char* song_name, char* recv)
 int restrictVote(char* deleteUser, char* recv)
 {
     int rc;
+    char queryRes[maxchr];
+
     int i=1, j=0;
     while(recv[i]!='\'')
     {
@@ -143,6 +189,22 @@ int restrictVote(char* deleteUser, char* recv)
 
     char sql[maxchr];
     sqlite3_stmt *stmt;
+
+    sprintf(sql,"SELECT canVote FROM users WHERE uid ='%s';",deleteUser);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==1)
+        return -1;
+
+    printf("%s",queryRes);
+    fflush(stdout);
+
+    memset(sql,0,sizeof(sql));
 
     sprintf(sql, "UPDATE users SET canVote=0 WHERE uid='%s';", deleteUser);
 
@@ -154,13 +216,15 @@ int restrictVote(char* deleteUser, char* recv)
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE)
     {
-        return -1;
+        return 0;
     }
     else return 1;
 }
 
 int addSong(char* song_name, char* description, char* genre, char* link, char* recv)
 {
+    int rc;
+    char queryRes[maxchr];
 
     int i=1, j=0;
     while(recv[i]!='\'')
@@ -188,19 +252,97 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
     {
         link[j++]=recv[i++];
     }
+
+    printf("%s %s %s %s",song_name,description,genre,link);
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==1)
+        return -1;
+
+    memset(sql,0,sizeof(sql));
+
+    sprintf(sql, "INSERT INTO songs (name, description, link) VALUES ('%s', '%s', '%s');",song_name,description,link);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_step(stmt);
+
+    memset(sql,0,sizeof(sql));
+    memset(queryRes,0,sizeof (queryRes));
+
+    sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    int sid=atoi(queryRes);
+
+    memset(sql,0,sizeof(sql));
+
+    sprintf(sql, "INSERT INTO genres (sid, genre) VALUES ('%d', '%s');",sid,genre);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    rc=sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE)
+    {
+        return 0;
+    }
+    else return 1;
 }
 
 int voteSong(char* song_name, char* recv)
 {
+    int rc;
+    char queryRes[maxchr];
+
     int i=1, j=0;
     while(recv[i]!='\'')
     {
         song_name[j++]=recv[i++];
     }
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==0)
+        return -1;
+
+    memset(sql,0,sizeof(sql));
+
+    sprintf(sql, "UPDATE songs SET votes=votes+1 WHERE name='%s';", song_name);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        return 0;
+    }
+    else return 1;
 }
 
-int commentSong(char* song_name, char* comment, char* recv)
+int commentSong(char* username, char* song_name, char* comment, char* recv)
 {
+    int rc;
+    char queryRes[maxchr];
     int i=1, j=0;
     while(recv[i]!='\'')
     {
@@ -213,20 +355,124 @@ int commentSong(char* song_name, char* comment, char* recv)
     {
         comment[j++]=recv[i++];
     }
+
+    char sql[maxchr];
+    sqlite3_stmt *stmt;
+
+    sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==0)
+        return -1;
+
+    int sid=atoi(queryRes);
+    memset(sql,0,sizeof(sql));
+
+    sprintf(sql, "INSERT INTO comments VALUES('%s', '%d','%s');", username,sid,comment);
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc == SQLITE_DONE)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+int showComments(char* song_name, char* recv, char* comment)
+{
+    int rc;
+    char queryRes[maxchr];
+
+    int i=1, j=0;
+    while(recv[i]!='\'')
+    {
+        song_name[j++]=recv[i++];
+    }
+
+    char sql[maxchr];
+
+    sprintf(sql,"SELECT sid FROM songs WHERE name='%s'",song_name);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==0)
+        return -1;
+
+    int sid=atoi(queryRes);
+    memset(sql,0,sizeof(sql));
+
+    sprintf(sql,"SELECT uid, comment FROM comments WHERE sid='%d';",sid);
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_comm, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strlen(queryRes)==0)
+        return -2;
+
+    strcpy(comment, queryRes);
+    return 1;
 }
 
 int sortGeneral(char* sort)
 {
-    //TODO sorting of songs by votes
+    int rc;
+    char queryRes[maxchr];
+
+    char sql[maxchr];
+
+    sprintf(sql,"SELECT name FROM songs ORDER BY votes DESC;");
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_sort, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    strcpy(sort,queryRes);
+    return 1;
 }
 
 int sortGenre(char* genre, char* recv, char* sort)
 {
+    int rc;
+    char queryRes[maxchr];
+
     int i=1, j=0;
     while(recv[i]!='\'')
     {
         genre[j++]=recv[i++];
     }
+
+    char sql[maxchr];
+
+    sprintf(sql,"SELECT s.name FROM songs s JOIN genres g ON s.sid=g.sid ORDER BY votes DESC;");
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_sort, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    strcpy(sort,queryRes);
+    return 1;
 }
 
 int commandEval(int fd)
@@ -239,11 +485,22 @@ int commandEval(int fd)
     int isLoggedIn=0; //1 - logged in as normal user, 2 - logged in as admin
     int quit=0;
 
-    //Database open
+    //Database init
+    char sql[maxchr];
+
     int rc = sqlite3_open("topmusic.db", &db);
     if(rc != SQLITE_OK)
     {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 1;
+    }
+
+    sprintf(sql, "PRAGMA foreign_keys=on;");
+    rc = sqlite3_exec(db, sql, callback_select, NULL, NULL);
+    if(rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Cannot setup database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return 1;
     }
@@ -350,7 +607,7 @@ int commandEval(int fd)
                     break;
             }
         }
-        else if (strstr (recv, "add song ") != NULL && isLoggedIn==1)
+        else if (strstr (recv, "add song ") != NULL && isLoggedIn>=1)
         {
             memset(song_name, 0, sizeof(song_name));
             memset(description, 0, sizeof(description));
@@ -372,7 +629,7 @@ int commandEval(int fd)
                     break;
             }
         }
-        else if (strstr (recv, "vote song ") != NULL && isLoggedIn==1)
+        else if (strstr (recv, "vote song ") != NULL && isLoggedIn>=1)
         {
             memset(song_name, 0, sizeof(song_name));
 
@@ -391,17 +648,17 @@ int commandEval(int fd)
                     break;
             }
         }
-        else if (strstr (recv, "comment song ") != NULL && isLoggedIn==1)
+        else if (strstr (recv, "comment song ") != NULL && isLoggedIn>=1)
         {
             memset(song_name, 0, sizeof(song_name));
             memset(comment, 0, sizeof(comment));
 
             strcpy(recv, recv+13);
 
-            int commSongResult=commentSong(song_name,comment,recv);
+            int commSongResult=commentSong(username,song_name,comment,recv);
             switch(commSongResult){
                 case -1:
-                    strcpy(send, "error commenting on song - make sure you use the foramt properly!\n");
+                    strcpy(send, "error commenting on song - not in database!\n");
                     break;
                 case 1:
                     strcpy(send, "successfully commented!\n");
@@ -412,17 +669,44 @@ int commandEval(int fd)
             }
 
         }
-        else if (strstr (recv, "top song general ") != NULL && isLoggedIn==1)
+        else if (strstr (recv, "show comments ")!= NULL && isLoggedIn>=1)
+        {
+            memset(song_name, 0, sizeof(song_name));
+            memset(comment, 0, sizeof(comment));
+
+            strcpy(recv, recv+14);
+
+            int commResult = showComments(song_name, recv, comment);
+            switch(commResult){
+                case -2:
+                    strcpy(send, "cannot show comments - song has no comments!\n");
+                    break;
+                case -1:
+                    strcpy(send, "cannot show comments - song not in database!\n");
+                    break;
+                case 1:
+                    strcat(send,"Here are the comments for this song:\n");
+                    strcat(send, comment);
+                    break;
+                default:
+                    strcpy(send, "error trying to show comments - probably the programmer's fault!\n");
+                    break;
+            }
+        }
+        else if (strstr (recv, "top song general") != NULL && isLoggedIn>=1)
         {
             memset(sort,0,sizeof (sort));
 
             int sortGeneralResult=sortGeneral(sort);
             if(sortGeneralResult)
-                strcpy(send, sort);
+            {
+                strcat(send,"Here are the top songs in order of votes:\n");
+                strcat(send, sort);
+            }
             else
                 strcpy(send, "error trying to sort by votes - probably the programmer's fault!\n");
         }
-        else if (strstr (recv, "top song genre ") != NULL && isLoggedIn==1)
+        else if (strstr (recv, "top song genre ") != NULL && isLoggedIn>=1)
         {
             memset(genre, 0, sizeof(genre));
             memset(sort,0,sizeof (sort));
@@ -431,19 +715,22 @@ int commandEval(int fd)
 
             int sortGenreResult=sortGenre(genre, recv, sort);
             if(sortGenreResult)
-                strcpy(send, sort);
+            {
+                strcat(send,"Here are the top songs by the genre you selected:\n");
+                strcat(send, sort);
+            }
             else
                 strcpy(send, "error trying to sort by genre - probably the programmer's fault!\n");
         }
         else if (strstr (recv, "commands") != NULL)
         {
-            strcpy(msg,"The list of available commands, followed by the necessary parameters:\n1. login 'username' 'password'\n2. register 'user/admin' 'username' 'password'\n");
+            strcat(msg,"The list of available commands, followed by the necessary parameters:\n1. login 'username' 'password'\n2. register 'user/admin' 'username' 'password'\n");
 
-            if(isLoggedIn==1)
-                strcpy(msg,"3. add song 'song_name' 'description' 'genre' 'link'\n4. vote song 'song_name'\n5. comment song 'song_name' 'comment'\n6. top song general\n7. top song 'genre'\n");
+            if(isLoggedIn>=1)
+                strcat(msg,"3. add song 'song_name' 'description' 'genre' 'link'\n4. vote song 'song_name'\n5. comment song 'song_name' 'comment'\n6. top song general\n7. top song 'genre'\n");
 
             if(isLoggedIn==2)
-                strcpy(msg,"8. delete song 'song_name'\n9. restrict vote 'username'\n");
+                strcat(msg,"8. delete song 'song_name'\n9. restrict vote 'username'\n");
             strcpy(send,msg);
 
         }
@@ -465,8 +752,6 @@ int commandEval(int fd)
             return errno;
         }
     }
-    //printf("sent %s to client", recv);
-    //fflush(stdout);
     sqlite3_close(db);
     return 0;
 }

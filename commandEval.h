@@ -19,7 +19,9 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
 
 int voteSong(char* song_name, char* recv);
 
-int commentSong(char* song_name, char* comment, char* recv);
+int commentSong(char* username, char* song_name, char* comment, char* recv);
+
+int showComments(char* song_name, char* recv, char* comment);
 
 int sortGeneral(char* sort);
 
@@ -27,6 +29,9 @@ int sortGenre(char* genre, char* recv, char* sort);
 
 int callback_select(void *str, int argc, char **argv, char **azColName);
 
+int callback_sort(void *str, int argc, char **argv, char **azColName);
+
+int callback_comm(void *str, int argc, char **argv, char **azColName);
 
 #endif //SERVER_C_COMMANDEVAL_H
 
