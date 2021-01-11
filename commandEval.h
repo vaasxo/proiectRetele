@@ -17,7 +17,7 @@ int restrictVote(char* deleteUser, char* recv);
 
 int addSong(char* song_name, char* description, char* genre, char* link, char* recv);
 
-int voteSong(char* song_name, char* recv);
+int voteSong(char* song_name, char* username, char* recv);
 
 int commentSong(char* username, char* song_name, char* comment, char* recv);
 

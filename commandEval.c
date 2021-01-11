@@ -223,7 +223,6 @@ int restrictVote(char* deleteUser, char* recv)
 
 int addSong(char* song_name, char* description, char* genre, char* link, char* recv)
 {
-    //TODO Add multiple genres
     int rc;
     char queryRes[maxchr];
 
@@ -254,8 +253,6 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
         link[j++]=recv[i++];
     }
 
-    printf("%s %s %s %s",song_name,description,genre,link);
-
     char sql[maxchr];
     sqlite3_stmt *stmt;
 
@@ -267,7 +264,9 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
     if(rc!=SQLITE_OK)
         return 0;
 
-    if(strlen(queryRes)==1)
+    printf("%s",queryRes);
+
+    if(strlen(queryRes)>0)
         return -1;
 
     memset(sql,0,sizeof(sql));
@@ -301,9 +300,8 @@ int addSong(char* song_name, char* description, char* genre, char* link, char* r
     else return 1;
 }
 
-int voteSong(char* song_name, char* recv)
+int voteSong(char* song_name, char* username, char* recv)
 {
-    //TODO check if user can vote ffs
     int rc;
     char queryRes[maxchr];
 
@@ -315,6 +313,19 @@ int voteSong(char* song_name, char* recv)
 
     char sql[maxchr];
     sqlite3_stmt *stmt;
+
+    sprintf(sql,"SELECT isAdmin FROM users WHERE uid ='%s'",username);
+
+    memset(queryRes,0,sizeof (queryRes));
+
+    rc = sqlite3_exec(db, sql, callback_select, queryRes, NULL);
+    if(rc!=SQLITE_OK)
+        return 0;
+
+    if(strcmp(queryRes, "1")==0)
+        return -2;
+
+    memset(sql,0,sizeof(sql));
 
     sprintf(sql,"SELECT sid FROM songs WHERE name ='%s';",song_name);
 
@@ -454,7 +465,6 @@ int sortGeneral(char* sort)
 
 int sortGenre(char* genre, char* recv, char* sort)
 {
-    //TODO Check for one genre in a single column with multiple genres
     int rc;
     char queryRes[maxchr];
 
@@ -466,7 +476,10 @@ int sortGenre(char* genre, char* recv, char* sort)
 
     char sql[maxchr];
 
-    sprintf(sql,"SELECT s.name FROM songs s JOIN genres g ON s.sid=g.sid ORDER BY votes DESC;");
+    sprintf(sql,"SELECT s.name FROM songs s JOIN genres g ON s.sid=g.sid WHERE g.genre LIKE '%%%s%%' ORDER BY votes DESC;", genre);
+
+    printf("%s", sql);
+    fflush(stdout);
 
     memset(queryRes,0,sizeof (queryRes));
 
@@ -638,10 +651,13 @@ int commandEval(int fd)
 
             strcpy(recv, recv+10);
 
-            int voteSongResult=voteSong(song_name,recv);
+            int voteSongResult=voteSong(song_name,username,recv);
             switch(voteSongResult){
-                case -1:
+                case -2:
                     strcpy(send, "cannot vote song - you do not have permission to vote!\n");
+                    break;
+                case -1:
+                    strcpy(send, "cannot vote song - song not in database!\n");
                     break;
                 case 1:
                     strcpy(send, "successfully voted!\n");
@@ -744,7 +760,7 @@ int commandEval(int fd)
         }
         else
         {
-            strcpy(send, "command not recognized! For a list of available commands, try 'commands'");
+            strcpy(send, "command not recognized! For a list of available commands, try 'commands'\n");
         }
 
         int sendLength=(int)strlen(send);
